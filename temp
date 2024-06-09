@@ -1,0 +1,78 @@
+const express = require('express');
+const admin = require('firebase-admin');
+const { createObjectCsvWriter } = require('csv-writer');
+const path = require('path');
+const fs = require('fs');
+
+// Initialize Firebase Admin SDK
+const serviceAccount = require('./path/to/serviceAccountKey.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+const db = admin.firestore();
+
+const app = express();
+const port = 3000;
+
+app.get('/export-csv/:id', async (req, res) => {
+  const docId = req.params.id;
+  try {
+    // Fetch data from Firestore
+    const docRef = db.collection('your-collection-name').doc(docId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      res.status(404).send('No document found with the given ID');
+      return;
+    }
+
+    // Define the fields you want to include in the CSV
+    const fields = [
+      'active', 'city', 'state', 'zip_code', 'title', 'desc', 'hasVariation', 'id',
+      'inStock', 'price', 'product_type', 'qty', 'quantity', 'status', 'vendorprice', 'vid'
+    ];
+
+    const docData = doc.data();
+    const filteredData = {};
+
+    // Filter only the required fields
+    fields.forEach(field => {
+      filteredData[field] = docData[field];
+    });
+
+    const data = [filteredData]; // Make it an array of one object for the CSV writer
+
+    // Define the CSV writer
+    const csvWriter = createObjectCsvWriter({
+      path: 'data.csv',
+      header: fields.map(field => ({ id: field, title: field }))
+    });
+
+    // Write data to CSV
+    await csvWriter.writeRecords(data);
+    console.log('CSV file written successfully');
+
+    // Send the CSV file as a response
+    const filePath = path.join(__dirname, 'data.csv');
+    res.setHeader('Content-disposition', 'attachment; filename=data.csv');
+    res.setHeader('Content-Type', 'text/csv');
+    res.download(filePath, 'data.csv', (err) => {
+      if (err) {
+        console.error('Error sending the file', err);
+        res.status(500).send('Error sending the file');
+      } else {
+        // Optionally delete the file after sending it
+        fs.unlinkSync(filePath);
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching data from Firestore or writing CSV', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
