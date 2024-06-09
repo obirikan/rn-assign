@@ -74,5 +74,25 @@ app.get('/export-csv/:id', async (req, res) => {
 });
 
 app.listen(port, () => {
+
   console.log(`Server is running on http://localhost:${port}`);
+
+
+
+
+
+
+
+
+
+
+function downloadCSV(docId) {
+  const link = document.createElement('a');
+  link.href = `http://localhost:3000/export-csv/${docId}`;
+  link.setAttribute('download', 'data.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 });
